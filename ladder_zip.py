@@ -15,7 +15,8 @@ common = [
     (os.path.join("sharpy-sc2", "jsonpickle"), "jsonpickle"),
     (os.path.join("sharpy-sc2", "sharpy"), "sharpy"),
     (os.path.join("sharpy-sc2", "python-sc2", "sc2"), "sc2"),
-    (os.path.join("sharpy-sc2", "sc2pathlibp"), "sc2pathlibp"),
+    (os.path.join("sharpy-sc2", "sc2pathlib"), "sc2pathlib"),
+    (os.path.join("sharpy-sc2", "sc2pathlibp.py"), "sc2pathlibp.py"),
     ("requirements.txt", None),
     ("version.txt", None),
     (os.path.join("sharpy-sc2", "config.py"), "config.py"),
@@ -42,12 +43,16 @@ zerg_zip = LadderZip(
     "ZergSharpyExample", "Zerg", [("zergbot", None), (os.path.join("zergbot", "run.py"), "run.py")], common
 )
 
+sunsetorpheus_zip = LadderZip(
+    "SunsetOrpheus", "Random", [("sunsetorpheus", None), (os.path.join("sunsetorpheus", "run.py"), "run.py")], common
+)
 
 
 zip_types = {
     "protoss": protoss_zip,
     "terran": terran_zip,
     "zerg": zerg_zip,
+    "sunsetorpheus": sunsetorpheus_zip,
     # All
     "all": None,
 }

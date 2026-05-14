@@ -136,9 +136,20 @@ dmypy.json
 # Project ignore
 Bots/
 publish/
+dummy/
 games/
 data/
 version.txt
+
+# ladder_zip.py staging artifacts (copied to root during zip build, then deleted)
+/jsonpickle/
+/sc2/
+/sharpy/
+/sc2pathlib/
+/sc2pathlibp.py
+/run.py
+/run_custom.py
+/ladderbots.json
 
 venv/
 __pycache__/
