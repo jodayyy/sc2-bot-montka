@@ -133,6 +133,9 @@ dmypy.json
 .idea/
 .vscode/
 
+# Claude Code memory (local AI assistant context, not project code)
+memory/
+
 # Project ignore
 Bots/
 publish/

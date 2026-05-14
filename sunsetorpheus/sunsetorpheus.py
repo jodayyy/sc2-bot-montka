@@ -3,9 +3,7 @@ from sc2.data import Race
 from sharpy.knowledges import KnowledgeBot
 from sharpy.plans import BuildOrder
 
-
 CHOSEN_RACE = random.choice([Race.Terran, Race.Zerg, Race.Protoss])
-
 
 class SunsetOrpheus(KnowledgeBot):
     def __init__(self):
@@ -15,14 +13,13 @@ class SunsetOrpheus(KnowledgeBot):
     async def create_plan(self) -> BuildOrder:
         if self.knowledge.my_race == Race.Terran:
             from sunsetorpheus.terran.plan import terran_plan
-            return terran_plan()
+            return terran_plan(self.knowledge.enemy_race)
         elif self.knowledge.my_race == Race.Zerg:
             from sunsetorpheus.zerg.plan import zerg_plan
-            return zerg_plan()
+            return zerg_plan(self.knowledge.enemy_race)
         else:
             from sunsetorpheus.protoss.plan import protoss_plan
-            return protoss_plan()
-
+            return protoss_plan(self.knowledge.enemy_race)
 
 def run():
     from sc2.player import Bot
