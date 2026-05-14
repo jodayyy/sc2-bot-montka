@@ -139,6 +139,7 @@ publish/
 dummy/
 games/
 data/
+logs/
 version.txt
 
 # ladder_zip.py staging artifacts (copied to root during zip build, then deleted)

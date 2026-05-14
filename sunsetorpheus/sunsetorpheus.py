@@ -1,5 +1,5 @@
 import random
-from sc2 import Race
+from sc2.data import Race
 from sharpy.knowledges import KnowledgeBot
 from sharpy.plans import BuildOrder
 
