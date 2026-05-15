@@ -63,50 +63,57 @@ Rename the `montka/` folder to your bot name (lowercase, no spaces), e.g. `BotNa
 
 ### 2. Update the bot class (`montka/montka.py` → `BotName/BotName.py`)
 
-Change the class name and the display name passed to `KnowledgeBot`:
+Rename the file itself to `BotName.py`, then update the class name, display name, and internal imports:
 
 ```python
 class BotName(KnowledgeBot):
     def __init__(self):
         super().__init__("BotName")  # This is the in-game display name
+
+    async def create_plan(self) -> BuildOrder:
+        if self.knowledge.my_race == Race.Terran:
+            from BotName.terran.plan import terran_plan
+            return terran_plan(self.knowledge.enemy_race)
+        elif self.knowledge.my_race == Race.Zerg:
+            from BotName.zerg.plan import zerg_plan
+            return zerg_plan(self.knowledge.enemy_race)
+        else:
+            from BotName.protoss.plan import protoss_plan
+            return protoss_plan(self.knowledge.enemy_race)
+
+def run():
+    from sc2.player import Bot
+    return Bot(CHOSEN_RACE, BotName())
 ```
 
-### 3. Update `run_custom.py`
-
-Find the import and registration lines for montka and update them:
+### 3. Update `BotName/run.py`
 
 ```python
-# Change this import
-from montka.montka import Montka
+# Change
+from montka.montka import run
 
 # To
-from BotName.BotName import BotName
+from BotName.BotName import run
+```
+
+### 4. Update `run_custom.py`
+
+```python
+# Change
+from montka.montka import Montka, CHOSEN_RACE
+
+# To
+from BotName.BotName import BotName, CHOSEN_RACE
 ```
 
 And update the bot registration:
 
 ```python
 # Change
-definitions.add("montka", "Mon'tka", Race.Random, lambda params: Bot(CHOSEN_RACE, Montka()))
+definitions.add_bot("montka", lambda params: Bot(CHOSEN_RACE, Montka()), None)
 
 # To
-definitions.add("BotName", "BotName", Race.Random, lambda params: Bot(CHOSEN_RACE, BotName()))
-```
-
-### 4. Update `montka/run.py` → `BotName/run.py`
-
-```python
-# Change
-from montka.montka import Montka
-
-# To
-from BotName.BotName import BotName
-```
-
-And update the bot instantiation:
-
-```python
-bot = Bot(Race.Random, BotName())
+definitions.add_bot("BotName", lambda params: Bot(CHOSEN_RACE, BotName()), None)
 ```
 
 ### 5. Update `ladder_zip.py`
@@ -114,17 +121,17 @@ bot = Bot(Race.Random, BotName())
 Find the `montka_zip` entry and update the name, folder, and run.py path:
 
 ```python
-montka_zip = LadderZip(
+BotName_zip = LadderZip(
     "BotName", "Random", [("BotName", None), (os.path.join("BotName", "run.py"), "run.py")], common
 )
 ```
 
-Also update the `zip_types` dict key:
+And update the `zip_types` dict:
 
 ```python
 zip_types = {
     ...
-    "BotName": montka_zip,
+    "BotName": BotName_zip,
     ...
 }
 ```
