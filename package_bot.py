@@ -1,22 +1,35 @@
 """
-Packages Montka into an AI Arena compatible zip.
+Packages a bot into an AI Arena compatible zip.
 
-Usage:
+Set BOT below to "montka" or "kauyon" and run:
     python package_bot.py
 
-Output: publish/Montka.zip
+Output: publish/{Bot}.zip
 """
 import os
 import glob
 import zipfile
 from os import path, walk
 
+# Which bot to package — "montka" or "kauyon".
+BOT = "montka"
+
 ROOT = path.dirname(path.abspath(__file__))
 VENV_SITE = path.join(ROOT, "venv", "Lib", "site-packages")
 VENV_SRC = path.join(ROOT, "venv", "src", "ares-sc2")
 OUT_DIR = path.join(ROOT, "publish")
-OUT_ZIP = path.join(OUT_DIR, "Montka.zip")
 LINUX_WHEELS_DIR = path.join(OUT_DIR, "linux_wheels")
+
+if BOT == "montka":
+    BOT_PKG = "montka"
+    RUN_SRC = path.join(ROOT, "run_montka.py")
+    OUT_ZIP = path.join(OUT_DIR, "Montka.zip")
+elif BOT == "kauyon":
+    BOT_PKG = "kauyon"
+    RUN_SRC = path.join(ROOT, "run_kauyon.py")
+    OUT_ZIP = path.join(OUT_DIR, "Kauyon.zip")
+else:
+    raise ValueError(f"BOT must be 'montka' or 'kauyon', got {BOT!r}")
 
 SKIP_DIRS = {"__pycache__", ".git", ".github", "tests", "docs", "build", "dist", "pickle_gameinfo"}
 # Keep .so (Linux), skip Windows .pyd and source files
@@ -72,8 +85,8 @@ def main():
         os.remove(OUT_ZIP)
 
     with zipfile.ZipFile(OUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
-        print("Adding run.py...")
-        add_file(zf, path.join(ROOT, "run.py"), "run.py")
+        print(f"Adding {path.basename(RUN_SRC)} as run.py...")
+        add_file(zf, RUN_SRC, "run.py")
 
         print("Adding config.yml...")
         add_file(zf, path.join(ROOT, "config.yml"), "config.yml")
@@ -81,8 +94,8 @@ def main():
         print("Adding requirements.txt...")
         add_file(zf, path.join(ROOT, "requirements.txt"), "requirements.txt")
 
-        print("Adding montka/...")
-        add_dir(zf, path.join(ROOT, "montka"), "montka")
+        print(f"Adding {BOT_PKG}/...")
+        add_dir(zf, path.join(ROOT, BOT_PKG), BOT_PKG)
 
         print("Adding ares/ ...")
         add_dir(zf, path.join(VENV_SRC, "src", "ares"), "ares")

@@ -2,8 +2,8 @@ from sc2.data import Race
 from sc2.ids.unit_typeid import UnitTypeId
 from sc2.ids.upgrade_id import UpgradeId
 
-from montka.protoss.build import Build
-from montka.protoss.common import ATTACK_SUPPLY, GATEWAY_MAX, GATEWAY_PER_BASE, PROBE_MAX
+from kauyon.protoss.build import Build
+from kauyon.protoss.common import ATTACK_SUPPLY, GATEWAY_MAX, GATEWAY_PER_BASE, PROBE_MAX
 
 # Pure Stalker — uniform composition keeps SpawnController simple and
 # benefits maximally from Blink (once researched) and ground weapon upgrades.

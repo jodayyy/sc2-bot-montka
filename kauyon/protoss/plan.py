@@ -19,8 +19,8 @@ from ares.behaviors.macro import (
     UpgradeController,
 )
 
-from montka.protoss.builds import BUILDS
-from montka.protoss.common import (
+from kauyon.protoss.builds import BUILDS
+from kauyon.protoss.common import (
     ATTACK_SUPPLY,
     CHRONO_ENERGY_THRESHOLD,
     EXPAND_MAX,
