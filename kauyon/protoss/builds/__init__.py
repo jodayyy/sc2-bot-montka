@@ -1,4 +1,15 @@
-from .stalker import build as stalker
+from dataclasses import dataclass, field
+from typing import Callable, Any
+from sc2.data import Race
 
-# Register all Protoss builds here. plan.py reads this list for matchup-aware selection.
-BUILDS = [stalker]
+
+@dataclass
+class Build:
+    name: str
+    fn: Callable[[], Any]
+    weight: int = 1
+    good_against: list = field(default_factory=list)  # empty = all races
+    tags: list = field(default_factory=list)
+
+
+BUILDS = []
