@@ -35,18 +35,20 @@ jobs:
         run: |
           pip install burnysc2 loguru PyYAML portpicker mpyq s2clientprotocol aiohttp requests lark scipy numpy scikit-learn
 
-      - name: Package bot zip
-        run: python package_bot.py --ci
+      - name: Package Montka
+        run: python package_bot.py --ci --bot montka
 
-      - name: Upload artifact
+      - name: Package Kauyon
+        run: python package_bot.py --ci --bot kauyon
+
+      - name: Upload Montka artifact
         uses: actions/upload-artifact@v4
         with:
           name: Montka
           path: publish/Montka.zip
 
-      - name: Upload to AI Arena
-        if: env.AIARENA_API_TOKEN != '' && env.AIARENA_BOT_ID != ''
-        env:
-          AIARENA_API_TOKEN: ${{ secrets.AIARENA_API_TOKEN }}
-          AIARENA_BOT_ID: ${{ secrets.AIARENA_BOT_ID }}
-        run: python scripts/upload_to_aiarena.py
+      - name: Upload Kauyon artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kauyon
+          path: publish/Kauyon.zip

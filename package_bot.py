@@ -1,18 +1,23 @@
 """
 Packages a bot into an AI Arena compatible zip.
 
-Set BOT below to "montka" or "kauyon" and run:
-    python package_bot.py
+Usage:
+    python package_bot.py --bot montka
+    python package_bot.py --bot kauyon
 
 Output: publish/{Bot}.zip
 """
+import argparse
 import os
 import glob
 import zipfile
 from os import path, walk
 
-# Which bot to package — "montka" or "kauyon".
-BOT = "montka"
+parser = argparse.ArgumentParser()
+parser.add_argument("--bot", choices=["montka", "kauyon"], required=True)
+parser.add_argument("--ci", action="store_true")
+args = parser.parse_args()
+BOT = args.bot
 
 ROOT = path.dirname(path.abspath(__file__))
 VENV_SITE = path.join(ROOT, "venv", "Lib", "site-packages")
