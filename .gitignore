@@ -142,6 +142,7 @@ games/
 data/
 logs/
 version.txt
+run_vs_bot.py
 
 # CI zip build staging artifacts
 /jsonpickle/
