@@ -1,5 +1,6 @@
 from sc2.ids.unit_typeid import UnitTypeId
 from sc2.unit import Unit
+from sc2.units import Units
 
 from ares.behaviors.macro import BuildStructure, MacroPlan
 
@@ -12,9 +13,25 @@ class Defense:
         self.config = config
 
     def on_step(self) -> None:
+        army_comp: dict = self.config.get("army_comp", {})
+        army: Units = self.ai.units(set(army_comp.keys())).ready if army_comp else None
+
         for nexus in self.ai.townhalls.ready:
             if self._base_is_under_attack(nexus):
                 self._build_defenses(nexus)
+                if army:
+                    self._defend_with_army(army)
+
+    def _defend_with_army(self, army: Units) -> None:
+        base_threats: Units = self.ai.enemy_units.filter(
+            lambda u: not u.is_structure
+            and not u.is_mineral_field
+            and not u.is_vespene_geyser
+            and any(u.distance_to(th) < 30 for th in self.ai.townhalls)
+        )
+        if base_threats:
+            for unit in army:
+                unit.attack(base_threats.closest_to(unit))
 
     def _base_is_under_attack(self, nexus: Unit) -> bool:
         # Check if any friendly unit or structure within range of this Nexus

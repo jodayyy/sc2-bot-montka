@@ -48,50 +48,49 @@ class Combat:
 
         if not self._attacking:
             if army_supply >= attack_supply:
-                # Reached critical mass — move out.
                 self._attacking = True
             else:
-                # Hold at the rally point between the two most recent expansions.
                 rally = self._rally_point(home, enemy)
                 for unit in army:
                     if unit.distance_to(rally) > 5:
                         unit.move(rally)
         else:
             if army_supply < attack_supply * retreat_ratio:
-                # Army wiped below retreat threshold — fall back and rebuild.
                 self._attacking = False
                 self._scan_index = 0
                 for unit in army:
                     unit.move(home)
             else:
-                self._push(army, enemy)
+                self._attack(army, enemy)
 
-    def _push(self, army: Units, enemy: Point2) -> None:
-        # Attack nearest visible enemy structure first — this handles cases where
-        # the enemy has expanded or moved base.
-        enemy_structures = self.ai.enemy_structures
-        if enemy_structures:
-            target = enemy_structures.closest_to(army.center)
+    def _attack(self, army: Units, enemy: Point2) -> None:
+        enemy_units = self.ai.enemy_units.filter(
+            lambda u: not u.is_mineral_field and not u.is_vespene_geyser
+        )
+
+        # Priority 1: any visible enemy unit — always preferred over structures.
+        if enemy_units:
+            for unit in army:
+                unit.attack(enemy_units.closest_to(unit))
+            return
+
+        # Priority 2: visible enemy structures — only when no units are visible.
+        if self.ai.enemy_structures:
+            target = self.ai.enemy_structures.closest_to(army.center)
             for unit in army:
                 unit.attack(target)
             return
 
-        # No visible enemy structures — scan expansion locations across the map
-        # in order (enemy-side first) until a base is found.
+        # No visible enemies — scan expansion locations enemy-side first.
         if self._scan_locations:
             target = self._scan_locations[self._scan_index]
-            army_center = army.center
-
-            # If army has arrived at current scan location, advance to the next one.
-            if army_center.distance_to(target) < _SCAN_ARRIVAL_DISTANCE:
+            if army.center.distance_to(target) < _SCAN_ARRIVAL_DISTANCE:
                 self._scan_index = (self._scan_index + 1) % len(self._scan_locations)
                 target = self._scan_locations[self._scan_index]
-
             for unit in army:
                 unit.attack(target)
             return
 
-        # Fallback — no scan locations available, push toward enemy start.
         for unit in army:
             unit.attack(enemy)
 
