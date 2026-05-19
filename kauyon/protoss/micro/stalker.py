@@ -39,7 +39,7 @@ class StalkerMicro:
             return
 
         # Only blink if the ability is actually available (not on cooldown).
-        if not stalker.is_blink_ready:
+        if AbilityId.EFFECT_BLINK_STALKER not in stalker.abilities:
             return
 
         closest_enemy = ai.enemy_units.closest_to(stalker)
