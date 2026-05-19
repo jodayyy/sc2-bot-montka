@@ -35,10 +35,11 @@ ATTACK_SUPPLY = 100
 # Build files can override "retreat_ratio" in config.
 RETREAT_RATIO = 0.3
 
-# Number of Gateways to build per committed base.
-# 2 per base is the standard macro-efficient ratio for a Protoss economy-first style.
-# Build files can override "gateway_per_base" in config.
-GATEWAY_PER_BASE = 2
+# Stepped gateway targets by committed base count.
+# Keys are base counts; the value is the gate target at that count.
+# Once bases exceed the highest key, GATEWAY_MAX is used.
+# Build files can override "gateway_steps" in config.
+GATEWAY_STEPS = {1: 1, 2: 3, 3: 6}
 
 # Hard cap on total Gateways regardless of base count.
 # Build files can override "gateway_max" in config.

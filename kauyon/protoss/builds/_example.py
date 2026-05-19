@@ -38,10 +38,12 @@ from sc2.ids.upgrade_id import UpgradeId
 #   Default: EXPAND_MAX from common.py (8)
 #   Example use: set to 2 for a 2-base all-in that never expands further.
 #
-# "gateway_per_base" (int)
-#   Number of Gateways to build per committed base. Scales up as the bot expands.
-#   Default: GATEWAY_PER_BASE from common.py (4)
-#   Example use: set lower for a slower build, higher for a unit-heavy strategy.
+# "gateway_steps" (dict[int, int])
+#   Stepped gate targets by committed base count. Keys are base counts, values
+#   are the gate target at that count. Once bases exceed the highest key,
+#   gateway_max is used.
+#   Default: GATEWAY_STEPS from common.py ({1: 1, 2: 3, 3: 6})
+#   Example use: {1: 2, 2: 4} for a faster early gate ramp.
 #
 # "gateway_max" (int)
 #   Hard cap on total Gateways regardless of base count.
@@ -98,7 +100,7 @@ CONFIG = {
     # "probe_max": 44,  # example: rush build caps probes early to push faster
     # "gas_total": 3,               # example: 2-base timing push with main x2 + natural x1
     # "chrono_energy_threshold": 50, # example: chrono more aggressively in an early push
-    # "gateway_per_base": 2,         # example: slower gate scaling for an economy-first build
+    # "gateway_steps": {1: 2, 2: 4}, # example: faster early ramp (overrides default steps)
     # "gateway_max": 8,              # example: cap gates for a 2-base all-in
     # "attack_supply": 60,           # example: early timing push at lower supply
     # "upgrades": [UpgradeId.BLINKTECH],  # example: add Blink for a Stalker build

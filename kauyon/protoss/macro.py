@@ -10,7 +10,7 @@ from kauyon.protoss.common import (
     EXPAND_AT_HARVESTERS,
     EXPAND_MAX,
     GATEWAY_MAX,
-    GATEWAY_PER_BASE,
+    GATEWAY_STEPS,
     PROBE_MAX,
 )
 
@@ -174,17 +174,18 @@ class Macro:
 
     def _gateways(self, macro: MacroPlan) -> None:
         # Don't scale gates until every structure in the opener sequence exists.
-        # This works regardless of what the opener ends with.
         opener: list = self.config.get("opener", DEFAULT_OPENER)
         if any(not self.ai.structures(s) for s in opener):
             return
 
-        gateway_per_base = self.config.get("gateway_per_base", GATEWAY_PER_BASE)
         gateway_max = self.config.get("gateway_max", GATEWAY_MAX)
+        steps: dict = self.config.get("gateway_steps", GATEWAY_STEPS)
 
-        # Count Gateways + Warpgates + pending together — once a Gateway morphs to
-        # a Warpgate it disappears from GATEWAY, which would cause BuildStructure to
-        # think fewer exist than the target and keep building indefinitely.
+        # Count Gateways + Warpgates + pending together.
+        # We do NOT pass this total to BuildStructure's to_count because ares's
+        # _enough_existing only checks GATEWAY (not WARPGATE), so once all gates
+        # have morphed it sees 0 and keeps building indefinitely. Instead we
+        # guard here and only add one gate at a time when we're under the target.
         total_gates = (
             len(self.ai.structures(UnitTypeId.GATEWAY))
             + len(self.ai.structures(UnitTypeId.WARPGATE))
@@ -197,18 +198,15 @@ class Macro:
             + self.ai.structure_pending(self.ai.base_townhall_type)
         )
 
-        # 2 gates on main, 4 on natural. Once 3rd base is committed, jump to
-        # gateway_max — Kau'yon commits to full production from that point on.
-        if bases_committed >= 3:
-            target = gateway_max
-        else:
-            target = min(gateway_max, bases_committed * gateway_per_base)
+        # Look up the step target; fall back to gateway_max once past all defined steps.
+        target = steps.get(bases_committed, gateway_max)
+        target = min(target, gateway_max)
 
         if total_gates < target:
+            # to_count omitted — our total_gates guard above is the real cap.
             macro.add(BuildStructure(
                 base_location=self.ai.start_location,
                 structure_id=UnitTypeId.GATEWAY,
-                to_count=target,
             ))
 
     def _upgrade_structures(self, macro: MacroPlan) -> None:
