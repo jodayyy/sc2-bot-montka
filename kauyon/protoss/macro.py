@@ -303,14 +303,26 @@ class Macro:
             return
 
         # Otherwise calculate dynamically: 2 assimilators per qualifying base.
-        # Main base always qualifies. Expansions qualify once they hit the same
-        # harvester threshold used for expansion — consistent saturation trigger.
-        expand_at = self.config.get("expand_at_harvesters", EXPAND_AT_HARVESTERS)
-        target = 0
+        # Main always qualifies (early gas for Warpgate). Natural and onwards
+        # qualify only once the *next* base's Nexus has been committed (ready or
+        # pending) — i.e. gas goes up on base N when base N+1 starts building.
+        # Bases are sorted nearest-to-home first so "next base" is unambiguous.
         home = self.ai.start_location
-        for th in self.ai.townhalls.ready:
-            is_main = th.distance_to(home) < 10
-            if is_main or th.assigned_harvesters >= expand_at:
+        nexus_type = self.ai.base_townhall_type
+        committed_bases = self.ai.townhalls.ready.amount + self.ai.structure_pending(nexus_type)
+
+        # Sort ready townhalls by distance from home: index 0 = main, index 1 = natural, etc.
+        bases_sorted = sorted(self.ai.townhalls.ready, key=lambda th: th.distance_to(home))
+
+        target = 0
+        base_rows = []
+        for i, th in enumerate(bases_sorted):
+            is_main = i == 0
+            # A non-main base qualifies once the next base (index i+1) is committed.
+            # committed_bases counts ready + pending, so base i qualifies when committed > i+1.
+            qualified = is_main or committed_bases > i + 1
+            base_rows.append((th.position, th.assigned_harvesters, qualified))
+            if qualified:
                 target += 2
 
         self.ai.register_behavior(GasBuildingController(to_count=target))
