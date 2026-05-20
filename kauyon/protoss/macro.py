@@ -276,10 +276,17 @@ class Macro:
         if not nexuses:
             return
 
-        # Priority: CyberCore researching > busy gates/warpgates > Nexus producing probes.
+        # Priority: CyberCore > Forge/Twilight researching > busy gates/warpgates > Nexus.
         # Chronoing the CyberCore speeds up Warpgate research which unlocks the whole army.
         cybers_busy = [
             s for s in self.ai.structures(UnitTypeId.CYBERNETICSCORE).ready
+            if s.orders and not s.has_buff(BuffId.CHRONOBOOSTENERGYCOST)
+        ]
+        upgrade_structs_busy = [
+            s for s in (
+                self.ai.structures(UnitTypeId.FORGE).ready
+                | self.ai.structures(UnitTypeId.TWILIGHTCOUNCIL).ready
+            )
             if s.orders and not s.has_buff(BuffId.CHRONOBOOSTENERGYCOST)
         ]
         gates_busy = [
@@ -294,7 +301,7 @@ class Macro:
             if nx.orders and not nx.has_buff(BuffId.CHRONOBOOSTENERGYCOST)
         ]
 
-        targets = cybers_busy or gates_busy or nexus_busy
+        targets = cybers_busy or upgrade_structs_busy or gates_busy or nexus_busy
         if not targets:
             return
 
