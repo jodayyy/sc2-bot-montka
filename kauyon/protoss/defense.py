@@ -34,10 +34,18 @@ class Defense:
                 unit.attack(base_threats.closest_to(unit))
 
     def _base_is_under_attack(self, nexus: Unit) -> bool:
-        # Check if any friendly unit or structure within range of this Nexus
-        # is actively taking damage. More reliable than checking Nexus alone
-        # since workers or units are often targeted first.
+        # Require both damaged friendlies AND visible enemy units nearby.
+        # Damaged-only check fires on scout units passing by or mid-regen shields.
         radius = self.config.get("defense_radius", DEFENSE_RADIUS)
+        threats = self.ai.enemy_units.filter(
+            lambda u: not u.is_structure
+            and not u.is_mineral_field
+            and not u.is_vespene_geyser
+            and u.distance_to(nexus) < radius
+        )
+        if not threats:
+            return False
+
         nearby_friendly = (
             self.ai.units.closer_than(radius, nexus)
             | self.ai.structures.closer_than(radius, nexus)

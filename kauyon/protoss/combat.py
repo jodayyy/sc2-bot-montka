@@ -17,6 +17,7 @@ class Combat:
         self._scan_index: int = 0
         # Expansion locations sorted from enemy start outward — checked enemy-side first.
         self._scan_locations: list[Point2] = []
+        self._was_rallying: bool = False
 
     def on_step(self) -> None:
         army_comp: dict = self.config.get("army_comp", {})
@@ -45,17 +46,32 @@ class Combat:
 
     def _handle_attack(self, army: Units, home: Point2, enemy: Point2, attack_supply: int, retreat_ratio: float) -> None:
         army_supply: float = self.ai.supply_army
+        retreat_threshold = attack_supply * retreat_ratio
 
         if not self._attacking:
             if army_supply >= attack_supply:
                 self._attacking = True
+                self._was_rallying = False
             else:
+                # Skip rally moves while defense is actively handling a base threat —
+                # both systems commanding the same units each step causes back-and-forth.
+                base_threats = self.ai.enemy_units.filter(
+                    lambda u: not u.is_structure
+                    and not u.is_mineral_field
+                    and not u.is_vespene_geyser
+                    and any(u.distance_to(th) < 30 for th in self.ai.townhalls)
+                )
+                if base_threats:
+                    self._was_rallying = False
+                    return
+
                 rally = self._rally_point(home, enemy)
-                for unit in army:
-                    if unit.distance_to(rally) > 5:
-                        unit.move(rally)
+                moving = [u for u in army if u.distance_to(rally) > 5]
+                self._was_rallying = bool(moving)
+                for unit in moving:
+                    unit.move(rally)
         else:
-            if army_supply < attack_supply * retreat_ratio:
+            if army_supply < retreat_threshold:
                 self._attacking = False
                 self._scan_index = 0
                 for unit in army:
@@ -64,21 +80,16 @@ class Combat:
                 self._attack(army, enemy)
 
     def _attack(self, army: Units, enemy: Point2) -> None:
-        enemy_units = self.ai.enemy_units.filter(
-            lambda u: not u.is_mineral_field and not u.is_vespene_geyser
-        )
-
-        # Priority 1: any visible enemy unit — always preferred over structures.
-        if enemy_units:
+        # Attack-move toward the nearest visible threat — units handle individual
+        # targeting themselves, which allows natural kiting and focus fire.
+        if self.ai.enemy_units or self.ai.enemy_structures:
+            target = (
+                self.ai.enemy_units.closest_to(army.center)
+                if self.ai.enemy_units
+                else self.ai.enemy_structures.closest_to(army.center)
+            )
             for unit in army:
-                unit.attack(enemy_units.closest_to(unit))
-            return
-
-        # Priority 2: visible enemy structures — only when no units are visible.
-        if self.ai.enemy_structures:
-            target = self.ai.enemy_structures.closest_to(army.center)
-            for unit in army:
-                unit.attack(target)
+                unit.attack(target.position)
             return
 
         # No visible enemies — scan expansion locations enemy-side first.
