@@ -2,10 +2,9 @@ from sc2.ids.unit_typeid import UnitTypeId
 
 # Maximum number of probes to maintain across all bases.
 # Kau'yon keeps expanding throughout the game but caps probe production at this number.
-PROBE_MAX = 75
+PROBE_MAX = 85
 
-# Harvester count on a base that triggers both the next expansion and gas at that base.
-# 14 means once a base has 14 mineral workers, take the next base and build its gases.
+# Harvester count on a base that triggers the next expansion.
 # Build files can override "expand_at_harvesters" in config.
 EXPAND_AT_HARVESTERS = 14
 
@@ -39,7 +38,7 @@ RETREAT_RATIO = 0.3
 # Keys are base counts; the value is the gate target at that count.
 # Once bases exceed the highest key, GATEWAY_MAX is used.
 # Build files can override "gateway_steps" in config.
-GATEWAY_STEPS = {1: 1, 2: 3, 3: 6}
+GATEWAY_STEPS = {1: 1, 2: 2, 3: 4, 4: 8}
 
 # Hard cap on total Gateways regardless of base count.
 # Build files can override "gateway_max" in config.
