@@ -55,9 +55,14 @@ class Production:
         if not army_comp:
             return
 
-        # Gate on at least one Gateway being ready before trying to spawn.
-        # SpawnController handles warpgate vs gateway production automatically.
-        if not self.ai.structures(UnitTypeId.GATEWAY).ready:
+        # Gate on at least one Gateway or Warpgate being ready before trying to spawn.
+        # Once Warpgate research completes all Gateways morph — checking only GATEWAY
+        # would cause SpawnController to never fire after that point.
+        has_gate = (
+            self.ai.structures(UnitTypeId.GATEWAY).ready
+            or self.ai.structures(UnitTypeId.WARPGATE).ready
+        )
+        if not has_gate:
             return
 
         macro.add(SpawnController(army_composition_dict=army_comp))
