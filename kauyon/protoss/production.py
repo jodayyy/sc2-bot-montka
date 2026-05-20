@@ -26,14 +26,14 @@ class Production:
         # Warpgate: converts Gateways to instant warp-in near any Pylon.
         upgrades = [UpgradeId.WARPGATERESEARCH]
 
-        # Default: weapons then armor — always researched regardless of build.
-        # Requires Forge (built in macro.py after 3rd base).
+        # Interleaved weapons/armor so two Forges research in parallel.
+        # Forge 1 takes Weapons1, Forge 2 takes Armor1, then each picks up the next item.
         upgrades += [
             UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1,
-            UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2,
-            UpgradeId.PROTOSSGROUNDWEAPONSLEVEL3,
             UpgradeId.PROTOSSGROUNDARMORSLEVEL1,
+            UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2,
             UpgradeId.PROTOSSGROUNDARMORSLEVEL2,
+            UpgradeId.PROTOSSGROUNDWEAPONSLEVEL3,
             UpgradeId.PROTOSSGROUNDARMORSLEVEL3,
         ]
 

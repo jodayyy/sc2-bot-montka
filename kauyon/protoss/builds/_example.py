@@ -9,11 +9,13 @@ from sc2.ids.upgrade_id import UpgradeId
 
 # --- Overridable config keys ---
 #
-# "opener" (list[UnitTypeId])
-#   The opening structure sequence. Built strictly in order — each structure
-#   must exist before the next one is started.
-#   Default: DEFAULT_OPENER from common.py (Pylon → Gateway → CyberneticsCore)
-#   Example use: swap in a different opener for an unconventional opening.
+# "opener" (list[tuple[UnitTypeId, int]])
+#   The opening structure sequence. Each entry is (UnitTypeId, count) — the opener
+#   waits until that many of the structure exist before moving to the next step.
+#   Use UnitTypeId.NEXUS as a sentinel to trigger a natural expansion at that point.
+#   Default: DEFAULT_OPENER from common.py
+#     Pylon×1 → Gateway×1 → Assimilator×1 → Nexus×2 → CyberneticsCore×1 → Assimilator×2
+#   Example use: swap in a different sequence for an unconventional opening.
 #
 # "probe_max" (int)
 #   Global probe cap for the entire game. Production stops when this count is
@@ -38,12 +40,13 @@ from sc2.ids.upgrade_id import UpgradeId
 #   Default: EXPAND_MAX from common.py (8)
 #   Example use: set to 2 for a 2-base all-in that never expands further.
 #
-# "gateway_steps" (dict[int, int])
-#   Stepped gate targets by committed base count. Keys are base counts, values
-#   are the gate target at that count. Once bases exceed the highest key,
-#   gateway_max is used.
-#   Default: GATEWAY_STEPS from common.py ({1: 1, 2: 3, 3: 6})
-#   Example use: {1: 2, 2: 4} for a faster early gate ramp.
+# "build_steps" (dict[int, list[tuple[UnitTypeId, int]]])
+#   Structures to build at each committed base count. Keys are base counts;
+#   values are lists of (UnitTypeId, count) targets to reach by that base count.
+#   All entries for lower base counts are also applied — they accumulate.
+#   Default: BUILD_STEPS from common.py ({1: [(GATEWAY, 1)], 2: [(GATEWAY, 2)]})
+#   Example use: add Forge + Twilight at 3 bases:
+#     {1: [(GATEWAY, 1)], 2: [(GATEWAY, 2)], 3: [(FORGE, 1), (TWILIGHTCOUNCIL, 1)]}
 #
 # "gateway_max" (int)
 #   Hard cap on total Gateways regardless of base count.
@@ -96,11 +99,11 @@ from sc2.ids.upgrade_id import UpgradeId
 CONFIG = {
     # "expand_at_harvesters": 14,    # example: expand when base hits 14 mineral workers
     # "expand_max": 2,               # example: 2-base all-in, never expands further
-    # "opener": [UnitTypeId.PYLON, UnitTypeId.GATEWAY, UnitTypeId.CYBERNETICSCORE],
+    # "opener": [(UnitTypeId.PYLON, 1), (UnitTypeId.GATEWAY, 1), (UnitTypeId.CYBERNETICSCORE, 1)],
     # "probe_max": 44,  # example: rush build caps probes early to push faster
     # "gas_total": 3,               # example: 2-base timing push with main x2 + natural x1
     # "chrono_energy_threshold": 50, # example: chrono more aggressively in an early push
-    # "gateway_steps": {1: 2, 2: 4}, # example: faster early ramp (overrides default steps)
+    # "build_steps": {1: [(UnitTypeId.GATEWAY, 1)], 2: [(UnitTypeId.GATEWAY, 2)], 3: [(UnitTypeId.FORGE, 1)]},
     # "gateway_max": 8,              # example: cap gates for a 2-base all-in
     # "attack_supply": 60,           # example: early timing push at lower supply
     # "upgrades": [UpgradeId.BLINKTECH],  # example: add Blink for a Stalker build

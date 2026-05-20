@@ -5,12 +5,12 @@ from sc2.ids.unit_typeid import UnitTypeId
 from ares.behaviors.macro import AutoSupply, BuildStructure, BuildWorkers, GasBuildingController, MacroPlan, Mining
 
 from kauyon.protoss.common import (
+    BUILD_STEPS,
     CHRONO_ENERGY_THRESHOLD,
     DEFAULT_OPENER,
     EXPAND_AT_HARVESTERS,
     EXPAND_MAX,
     GATEWAY_MAX,
-    GATEWAY_STEPS,
     PROBE_MAX,
 )
 
@@ -61,8 +61,8 @@ class Macro:
         macro.add(self._reserve_nexus)
         self._expansion(macro)
         self._opener(macro)
-        self._gateways(macro)
-        self._upgrade_structures(macro)
+        self._build_steps(macro)
+        self._gateway_scaling(macro)
         self._supply(macro)
         self._build_workers(macro)
 
@@ -76,16 +76,15 @@ class Macro:
         expand_at = self.config.get("expand_at_harvesters", EXPAND_AT_HARVESTERS)
         expand_max = self.config.get("expand_max", EXPAND_MAX)
 
-        # Always want at least 2 bases (main + natural).
-        desired = 2
+        # Base desire is current committed base count — never shrink below what we have.
+        # Each saturated non-main base adds 1 to signal readiness for the next expansion.
+        nexus_type = self.ai.base_townhall_type
+        desired = self.ai.townhalls.ready.amount + self.ai.structure_pending(nexus_type)
 
-        # Count saturated expansions (anything 10+ away from main). Order does
-        # not matter — we only need a count. Saturation latches: once a base
-        # crosses expand_at it stays counted, so assigned_harvesters jitter at
-        # the boundary can't flap `desired` up and down.
         home = self.ai.start_location
         saturated = self._saturated_tags
         for th in self.ai.townhalls.ready:
+            # Skip main — it's always saturated relative to expansions.
             if th.distance_to(home) < 10:
                 continue
             if th.tag in saturated:
@@ -158,81 +157,100 @@ class Macro:
         )
 
     def _opener(self, macro: MacroPlan) -> None:
-        # Walk the opener sequence and queue the first structure that doesn't exist yet.
-        # Stops after the first missing structure so buildings go up one at a time in order.
-        # Build files can override "opener" in config to use a different sequence.
+        # Walk the opener sequence and queue the first step not yet satisfied.
+        # Each step is a (UnitTypeId, count) tuple — waits until that many exist.
+        # NEXUS triggers _dispatch_expansion; ASSIMILATOR triggers GasBuildingController.
+        # Stops after the first unsatisfied step so buildings go up one at a time.
         opener: list = self.config.get("opener", DEFAULT_OPENER)
 
-        for structure_id in opener:
-            if not self.ai.structures(structure_id):
-                kwargs = {"base_location": self.ai.start_location, "structure_id": structure_id}
-                # first_pylon=True tells ares to use a special placement near the main ramp.
-                if structure_id == UnitTypeId.PYLON and not self.ai.structures(UnitTypeId.PYLON):
-                    kwargs["first_pylon"] = True
-                macro.add(BuildStructure(**kwargs))
+        for structure_id, count in opener:
+            existing = len(self.ai.structures(structure_id))
+            if existing >= count:
+                continue
+
+            # NEXUS sentinel — delegate to the expansion dispatcher.
+            if structure_id == UnitTypeId.NEXUS:
+                self._dispatch_expansion(count)
                 return
 
-    def _gateways(self, macro: MacroPlan) -> None:
-        # Don't scale gates until every structure in the opener sequence exists.
+            # ASSIMILATOR — GasBuildingController handles gas placement, not BuildStructure.
+            if structure_id == UnitTypeId.ASSIMILATOR:
+                self.ai.register_behavior(GasBuildingController(to_count=count))
+                return
+
+            kwargs = {"base_location": self.ai.start_location, "structure_id": structure_id}
+            # first_pylon=True tells ares to use special placement near the main ramp.
+            if structure_id == UnitTypeId.PYLON and existing == 0:
+                kwargs["first_pylon"] = True
+            # to_count drives BuildStructure to the exact target for this step.
+            kwargs["to_count"] = count
+            macro.add(BuildStructure(**kwargs))
+            return
+
+    def _build_steps(self, macro: MacroPlan) -> None:
+        # Don't build anything until the opener is complete.
         opener: list = self.config.get("opener", DEFAULT_OPENER)
-        if any(not self.ai.structures(s) for s in opener):
+        if any(len(self.ai.structures(s)) < count for s, count in opener):
             return
 
         gateway_max = self.config.get("gateway_max", GATEWAY_MAX)
-        steps: dict = self.config.get("gateway_steps", GATEWAY_STEPS)
+        steps: dict = self.config.get("build_steps", BUILD_STEPS)
 
-        # Count Gateways + Warpgates + pending together.
-        # We do NOT pass this total to BuildStructure's to_count because ares's
-        # _enough_existing only checks GATEWAY (not WARPGATE), so once all gates
-        # have morphed it sees 0 and keeps building indefinitely. Instead we
-        # guard here and only add one gate at a time when we're under the target.
+        bases_committed = (
+            self.ai.townhalls.ready.amount
+            + self.ai.structure_pending(self.ai.base_townhall_type)
+        )
+
+        # Collect all entries up to and including the current base count.
+        # Higher base counts are ignored until we actually have those bases.
+        targets: list[tuple] = []
+        for base_count in sorted(steps):
+            if base_count > bases_committed:
+                break
+            targets.extend(steps[base_count])
+
+        # Queue the first unsatisfied structure.
+        for structure_id, count in targets:
+            # Gateways morph into Warpgates — count both to avoid over-building.
+            if structure_id == UnitTypeId.GATEWAY:
+                existing = (
+                    len(self.ai.structures(UnitTypeId.GATEWAY))
+                    + len(self.ai.structures(UnitTypeId.WARPGATE))
+                    + self.ai.structure_pending(UnitTypeId.GATEWAY)
+                )
+                count = min(count, gateway_max)
+            else:
+                existing = len(self.ai.structures(structure_id))
+
+            if existing < count:
+                macro.add(BuildStructure(
+                    base_location=self.ai.start_location,
+                    structure_id=structure_id,
+                    to_count=count if structure_id != UnitTypeId.GATEWAY else 0,
+                ))
+                return
+
+    def _gateway_scaling(self, macro: MacroPlan) -> None:
+        # After build steps are satisfied, keep adding gateways 2 at a time
+        # but only when the mineral bank is 1000+ to avoid bleeding economy.
+        if self.ai.minerals < 1000:
+            return
+
+        gateway_max = self.config.get("gateway_max", GATEWAY_MAX)
         total_gates = (
             len(self.ai.structures(UnitTypeId.GATEWAY))
             + len(self.ai.structures(UnitTypeId.WARPGATE))
             + self.ai.structure_pending(UnitTypeId.GATEWAY)
         )
+        if total_gates >= gateway_max:
+            return
 
-        # Committed bases = ready Nexuses + any Nexus currently being built.
-        bases_committed = (
-            self.ai.townhalls.ready.amount
-            + self.ai.structure_pending(self.ai.base_townhall_type)
-        )
-
-        # Look up the step target; fall back to gateway_max once past all defined steps.
-        target = steps.get(bases_committed, gateway_max)
-        target = min(target, gateway_max)
-
+        # Round up to the next even number so we always build in pairs.
+        target = min(total_gates + 2, gateway_max)
         if total_gates < target:
-            # to_count omitted — our total_gates guard above is the real cap.
             macro.add(BuildStructure(
                 base_location=self.ai.start_location,
                 structure_id=UnitTypeId.GATEWAY,
-            ))
-
-    def _upgrade_structures(self, macro: MacroPlan) -> None:
-        # Build Forge and Twilight Council once 3rd base is committed.
-        # Gated on 3rd base so minerals aren't bled before the economy is stable.
-        bases_committed = (
-            self.ai.townhalls.ready.amount
-            + self.ai.structure_pending(self.ai.base_townhall_type)
-        )
-        if bases_committed < 3:
-            return
-
-        # Forge enables weapon and armor upgrades.
-        if not self.ai.structures(UnitTypeId.FORGE):
-            macro.add(BuildStructure(
-                base_location=self.ai.start_location,
-                structure_id=UnitTypeId.FORGE,
-                to_count=1,
-            ))
-
-        # Twilight Council enables Blink research.
-        if not self.ai.structures(UnitTypeId.TWILIGHTCOUNCIL):
-            macro.add(BuildStructure(
-                base_location=self.ai.start_location,
-                structure_id=UnitTypeId.TWILIGHTCOUNCIL,
-                to_count=1,
             ))
 
     def _supply(self, macro: MacroPlan) -> None:
@@ -287,14 +305,9 @@ class Macro:
             nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, targets.pop(0))
 
     def _gas(self) -> None:
-        # Don't build any gas until the Gateway is up — too early otherwise.
-        if not self.ai.structures(UnitTypeId.GATEWAY):
-            return
-
-        # Build one assimilator early (before CyberCore is ready) to start
-        # gas income flowing in time for Warpgate research.
-        if not self.ai.structures(UnitTypeId.CYBERNETICSCORE):
-            self.ai.register_behavior(GasBuildingController(to_count=1))
+        # Gas in the opener (assimilators 1 and 2) is handled by _opener() via BuildStructure.
+        # _gas() only runs the dynamic scaling logic once the CyberCore is ready.
+        if not self.ai.structures(UnitTypeId.CYBERNETICSCORE).ready:
             return
 
         # If the build specifies a flat gas total, use that directly.
